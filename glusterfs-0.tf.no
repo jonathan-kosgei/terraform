@@ -1,0 +1,34 @@
+resource "azure_instance" "glusterfs-0" {
+    name = "sc-r2-glusterfs-0"
+    hosted_service_name = "sc-r2-glusterfs-${count.index}"
+    image = "Ubuntu Server 16.04 LTS"
+    size = "Basic_A1"
+    storage_service_name = "${azure_storage_service.sc-r2-storage.name}"
+    location = "East US"
+    virtual_network = "${azure_virtual_network.sc-r2-virtual-network.id}"
+    subnet = "kubeminions"
+    username = "jonathan"
+    ssh_key_thumbprint = "${var.ssh_key_thumbprint}"
+    security_group = "${azure_security_group.kubeminions.name}"
+    count = "1"
+    endpoint {
+        name = "SSH"
+        protocol = "tcp"
+        public_port = 22
+        private_port = 22
+    }
+
+    provisioner "remote-exec" {
+    connection {
+        user = "jonathan"
+        host = "${azure_instance.glusterfs-0.ip_address}"
+        bastion_host = "${azure_instance.nat.vip_address}"
+        private_key = "~/.ssh/sc-r2-key.key"
+    }
+      inline = [
+      "sudo apt-get update", 
+      "sudo apt-get install glusterfs-server -y",
+      "sudo gluster peer probe ${azure_instance.glusterfs-0.hosted_service_name}"
+      ]
+    }
+}
